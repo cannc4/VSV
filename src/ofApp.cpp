@@ -19,15 +19,18 @@ void rotateToNormal(ofVec3f normal) {
 
 void ofApp::setup() {
     // Graphics init //
-    ofSetVerticalSync(true);
+    // ofSetVerticalSync(true);
     // draw the vertices in pathLines as a line strip
     pathLines.setMode(OF_PRIMITIVE_LINE_STRIP);
     
+	// load shader
+	shader.load("shaders/shader");
+
     // Video init //
     vid.load("vid/test.mov");
     vid.setLoopState(OF_LOOP_NORMAL);
     vid.play();
-    ofSetVerticalSync(true);
+    // ofSetVerticalSync(true);
     frameByframe = false;
 
     // OSC init //
@@ -178,56 +181,56 @@ void ofApp::draw() {
     ofColor yellow = ofColor::fromHex(0xffee00);
     
     ofBackgroundGradient(magenta * .6, magenta * .4);
-    ofNoFill();
+    // ofNoFill();
     
-    easyCam.begin();
-    ofRotateXDeg(15);
-    
-    ofSetColor(0);
-    ofDrawGrid(500, 10, false, false, true, false);
-    
-    // draw the path of the box
-    ofSetLineWidth(2);
-    ofSetColor(cyan);
-    pathLines.draw();
-    
-    // draw a line connecting the box to the grid
-    ofSetColor(yellow);
-    ofDrawLine(current.x, current.y, current.z, current.x, 0, current.z);
-    
-    ofTranslate(current.x, current.y, current.z);
-    if( (current - previous ).length() > 0.0 ){
-        // translate and rotate every 3D object after this line to the current position and orientation of our line, but only if the line is longer than 0 or has a length
-        rotateToNormal(current - previous);
-    }
-    ofSetColor(255);
-    ofDrawBox(32);
-    ofDrawAxis(32);
-    
-    easyCam.end();
+  //  easyCam.begin();
+		//ofRotateXDeg(15);
+  //  
+		//ofSetColor(0);
+		//ofDrawGrid(500, 10, false, false, true, false);
+  //  
+		//// draw the path of the box
+		//ofSetLineWidth(2);
+		//ofSetColor(cyan);
+		//pathLines.draw();
+  //  
+		//// draw a line connecting the box to the grid
+		//ofSetColor(yellow);
+		//ofDrawLine(current.x, current.y, current.z, current.x, 0, current.z);
+  //  
+		//ofTranslate(current.x, current.y, current.z);
+		//if( (current - previous ).length() > 0.0 ){
+		//	// translate and rotate every 3D object after this line to the current position and orientation of our line, but only if the line is longer than 0 or has a length
+		//	rotateToNormal(current - previous);
+		//}
+		//ofSetColor(255);
+		//ofDrawBox(32);
+		//ofDrawAxis(32);
+  //  easyCam.end();
     
     // FFT //
 	ofSetColor(255);
 	ofPushMatrix();
-	ofTranslate(16, 16);
-    vid.draw(40,40);
-	ofDrawBitmapString("Time Domain", 0, 0);
+		ofTranslate(16, 16);
+		vid.draw(40,40);
+		ofDrawBitmapString("Time Domain", 0, 0);
+
+		//soundMutex.lock();
+		drawBuffer = middleBuffer;
+		drawBins = middleBins;
+		//soundMutex.unlock();
 	
-	soundMutex.lock();
-	drawBuffer = middleBuffer;
-	drawBins = middleBins;
-	soundMutex.unlock();
-	
-	plot(drawBuffer, plotHeight / 2, 0);
-	ofTranslate(0, plotHeight + 16);
-	ofDrawBitmapString("Frequency Domain", 0, 0);
-	plot(drawBins, -plotHeight, plotHeight / 2);
-	ofTranslate(0, plotHeight + 16);
-	spectrogram.update();
-	spectrogram.draw(0, 0);
-	ofDrawRectangle(0, 0, bufferSize, bufferSize / 2);
-	ofDrawBitmapString("Spectrogram", 0, 0);
+		plot(drawBuffer, plotHeight / 2, 0);
+		ofTranslate(0, plotHeight + 16);
+		ofDrawBitmapString("Frequency Domain", 0, 0);
+		plot(drawBins, -plotHeight, plotHeight / 2);
+		ofTranslate(0, plotHeight + 16);
+		spectrogram.update();
+		spectrogram.draw(0, 0);
+		ofDrawRectangle(0, 0, bufferSize, bufferSize / 2);
+		ofDrawBitmapString("Spectrogram", 0, 0);
 	ofPopMatrix();
+
 	string msg = ofToString((int) ofGetFrameRate()) + " fps";
 	ofDrawBitmapString(msg, appWidth - 80, appHeight - 20);
     
@@ -240,15 +243,57 @@ void ofApp::draw() {
     string buf = "listening for osc messages on port " + ofToString(PORT);
     ofDrawBitmapStringHighlight(buf, 10, 20);
     
+
+	shader.begin();
+	ofVec2f dims(500, 500);
+	shader.setUniform1f("time", ofGetElapsedTimef());
+	shader.setUniform2f("res", ofGetWidth(), ofGetHeight());
+
+    int mid = 6;
+    float fftarray[8];
+    float fftscale = 3000;
+    for (int i =0 ; i< 8; i++) {
+        float sum = 0;
+        for (int j =0 ; j< drawBins.size()/8; j++) {
+            sum += drawBins[i* drawBins.size()/8+j];
+        }
+        fftarray[i] = sum / drawBins.size()/8 * fftscale;
+         cout << i << " ___ > " <<fftarray[i] << endl;
+    }
+   
+	shader.setUniform4f("fft", fftarray[0], fftarray[1], fftarray[2], fftarray[3]);
+	shader.setUniform4f("fft_", fftarray[mid-2], fftarray[mid - 1], fftarray[mid], fftarray[mid + 1]);
+
+	ofFill();
+	ofDrawRectangle(0, 0, ofGetWidth(), ofGetHeight());
+	shader.end();
+
+    
+    
+    // -- Decay evolution matrix values towards their default values
+//    decayEvolutionMatrices() {
+//        for (let i = 0; i < this.evolutions.length; i++) {
+//            for (let j = 0; j < 16; j++) {
+//                const a = _.toInteger(j / 4);
+//                const b = j % 4;
+//                const val = this.evolutions[i].subset(math.index(a, b));
+//                this.evolutions[i].subset(math.index(a, b),
+//                                          (val - this.def_values[a][b]) * 0.99 + this.def_values[a][b]);
+//            }
+//        }
+//    }
+
     // draw mouse state
-    ofPoint mouseIn(mouseXf*ofGetWidth(), mouseYf*ofGetHeight());
+    /*ofPoint mouseIn(mouseXf, mouseYf);
     if(mouseButtonInt == 0){
         ofSetColor(255);
     } else{
         ofSetColor(ofColor::salmon);
     }
     ofDrawCircle(mouseIn, 20);
-    ofDrawBitmapStringHighlight(mouseButtonState, mouseIn);
+    ofDrawBitmapStringHighlight(mouseButtonState, mouseIn);*/
+
+
 }
 
 
@@ -294,6 +339,7 @@ void ofApp::audioReceived(float* input, int bufferSize, int nChannels) {
 	float* curFft = fft->getAmplitude();
 	memcpy(&audioBins[0], curFft, sizeof(float) * fft->getBinSize());
 
+	// normalize result
 	float maxValue = 0;
 	for(int i = 0; i < fft->getBinSize(); i++) {
 		if(abs(audioBins[i]) > maxValue) {
@@ -358,36 +404,36 @@ void ofApp::keyReleased(int key){
 
 //--------------------------------------------------------------
 void ofApp::mouseMoved(int x, int y ){
-    if(!frameByframe){
+    /*if(!frameByframe){
         int width = ofGetWidth();
         float pct = (float)x / (float)width;
         float speed = (2 * pct - 1) * 5.0f;
         vid.setSpeed(speed);
-    }
+    }*/
 }
 
 //--------------------------------------------------------------
 void ofApp::mouseDragged(int x, int y, int button){
-    if(!frameByframe){
+    /*if(!frameByframe){
         int width = ofGetWidth();
         float pct = (float)x / (float)width;
         vid.setPosition(pct);
-    }
+    }*/
 }
 
 //--------------------------------------------------------------
 void ofApp::mousePressed(int x, int y, int button){
-    if(!frameByframe){
+    /*if(!frameByframe){
         vid.setPaused(true);
-    }
+    }*/
 }
 
 
 //--------------------------------------------------------------
 void ofApp::mouseReleased(int x, int y, int button){
-    if(!frameByframe){
+    /*if(!frameByframe){
         vid.setPaused(false);
-    }
+    }*/
 }
 
 //--------------------------------------------------------------

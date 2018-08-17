@@ -1,7 +1,9 @@
 #include "ofApp.h"
-#include "ofApp.h"
 
 int main() {
-    ofSetupOpenGL(1024,820, OF_WINDOW);// <-------- setup the GL context
+	ofGLWindowSettings settings;
+	settings.setGLVersion(3, 2);
+	ofCreateWindow(settings);
+
 	ofRunApp(new ofApp());
 }

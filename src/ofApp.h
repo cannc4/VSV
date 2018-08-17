@@ -70,12 +70,15 @@ public:
     
     // VIDEO //
     ofVideoPlayer vid;
-    bool frameByframe;
+    bool frameByframe = true;
     
     // Graphics //
     ofVec3f previous, current;
     ofEasyCam easyCam;
     
+	// Shader //
+	ofShader shader;
+
     deque<ofVec3f> pathVertices;
     ofMesh pathLines;
     
